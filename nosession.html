@@ -1,0 +1,15 @@
+html(lang="en")
+  head
+    title #{title}
+    script(src: "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js", type: "text/javascript")
+  body
+    h1 Testing
+    #form
+      form(method:"post",action:"/login")
+        span Name: 
+        input(type:"text", name:"name")
+        br
+        span Pass: 
+        input(type:"password", name:"password")
+        br
+        input(type:"submit", value:"Join", name:"op")

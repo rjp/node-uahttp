@@ -1,0 +1,20 @@
+html(lang="en")
+  head
+    title #{title}
+    script(src: "http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js", type: "text/javascript")
+    script(src: "/static/myjs.js?"+random, type: "text/javascript")
+  body
+    h1 Testing
+    p Welcome #{name}
+    p
+      a(href:"/logout") Logout
+    p
+      a(href:"/page") Send Page
+    #status
+      p Alive:
+        span#alive
+    #folder_list
+      h2 Folder list
+      ul#folders
+    #event_list
+      ul#events
