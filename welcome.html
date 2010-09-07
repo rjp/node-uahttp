@@ -9,7 +9,10 @@ html(lang="en")
     p
       a(href:"/logout") Logout
     p
-      a(href:"/page") Send Page
+      form(name="cock", onSubmit="sendpage();return false")
+        input(type: "text", name: "pageuser", id:"pageuser")
+        input(type: "text", name: "pagetext", id:"pagetext")
+        input(type: "submit", name: "pagesub", value:"Send Page")
     #status
       p Alive:
         span#alive

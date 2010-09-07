@@ -3,7 +3,7 @@ var all_events = new Array;
 function show_alive(data, textStatus) {
     $('#alive').html(data.alive);
     if (! data.alive) { // no live UA connection
-        window.location('/');
+        window.location = '/';
     }
     if (data.alive) { // live session
         $.getJSON('/folders.json', show_folders);
@@ -24,6 +24,13 @@ function show_folders(data, textStatus) {
 
 function check_alive() {
     $.getJSON('/live.json', show_alive);
+}
+
+function sendpage() {
+    var to = $('#pageuser').val();
+    var text = $('#pagetext').val();
+    alert("would page "+to+" with ["+text+"]");
+    $.post('/page', {to: to, text: text});
 }
 
 $(document).ready(function(){

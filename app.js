@@ -15,39 +15,7 @@ var pending = new Array;
 
 var unsent_events = new Array;
 
-// our UAClient subclass
-function Bot(name) {
-    uaclient.UAClient.call(this);
-    var self = this;
-    this.name = name;
-}
-sys.inherits(Bot, uaclient.UAClient);
-Bot.prototype.reply_user_login = function(a) {
-    sys.puts("do something with the connection here = "+this.name);
-    live[this.name] = pending[this.name];
-    pending[this.name] = undefined;
-
-//    <request="folder_list"><searchtype=2/></>
-    live[this.name].stream.write('<request="folder_list"><searchtype=2/></>');
-}
-
-Bot.prototype.close = function() {
-    sys.puts("Wah, my stream closed");
-    pending[this.name] = undefined; // no more ua
-    live[this.name] = undefined; // no more ua
-}
-
-Bot.prototype.reply_user_logout = function(a) {
-    sys.puts("someone logged out");
-}
-//<announce="message_add"><messageid=12/><folderid=1/><foldername="test"/><subject="cocks"/><fromid=3/><fromname="rjp"/><announcetime=1282814054/></>
-Bot.prototype.announce_message_add = function(a) {
-    this.flatten(a);
-    announce = a["fromname"] + " posted ``"+a["subject"]+"'' in "+a["foldername"]
-    unsent_events.push(announce)
-}
-
-Bot.prototype.reply_folder_list = function(a) {
+function reply_folder_list(a) {
     var i;
     // <reply="folder_list"><folder=1><name="test"/><accessmode=7/><subtype=1/><temp=1/><unread=1/></><numfolders=1/></>
     sys.puts(a.children.length);
@@ -73,6 +41,40 @@ Bot.prototype.reply_folder_list = function(a) {
     }
 }
 
+// our UAClient subclass
+function Bot(name) {
+    uaclient.UAClient.call(this);
+    var self = this;
+    this.name = name;
+
+    // if we log in successfully, remember our "handle"
+    this.addListener("reply_user_login", function(a) {
+	    sys.puts("do something with the connection here = "+this.name);
+	    live[this.name] = pending[this.name];
+	    pending[this.name] = undefined;
+	
+	//    <request="folder_list"><searchtype=2/></>
+	    live[this.name].stream.write('<request="folder_list"><searchtype=2/></>');
+	});
+
+    // if UA goes away, we need to delete our handle
+    this.addListener("close", function(a) {
+	    sys.puts("Wah, my stream closed");
+	    pending[this.name] = undefined; // no more ua
+	    live[this.name] = undefined; // no more ua
+    });
+    
+    // we want to capture newly posted messages for displaying
+    this.addListener("announce_message_add", function(a) {
+	    this.flatten(a);
+	    announce = a["fromname"] + " posted ``"+a["subject"]+"'' in "+a["foldername"]
+	    unsent_events.push(announce)
+	});
+
+    this.addListener("reply_folder_list", reply_folder_list);
+}
+sys.inherits(Bot, uaclient.UAClient);
+
 // end
 
 function wipe_session(req, res) {
@@ -84,31 +86,32 @@ function wipe_session(req, res) {
 
 function with_session(req, res, callback) {
     sn = req.session.name;
+    sys.puts("ws: checking "+sn);
     if (sn) {
         ua = live[sn];
-        sys.puts("session ok, ua="+ua);
+        sys.puts("ws: session ok, ua="+ua);
         callback(res, req, ua);
     } else {
-        sys.puts("no session, redirecting");
+        sys.puts("ws: no session, redirecting");
         wipe_session(req, res);
     }
-    res.end();
 }
 
 function with_live_session(req, res, callback) {
     sn = req.session.name;
+    sys.puts("SN="+sn);
     if (sn) {
         ua = live[sn];
         if (ua) {
-            sys.puts("live session ok");
+            sys.puts("wls: live session ok for "+sn);
             callback(res, req, ua);
             res.end();
         } else {
-            sys.puts("no session, redirecting");
+            sys.puts("wls: no live session for "+sn+", redirecting");
             wipe_session(req, res);
         }
     } else {
-        sys.puts("no session, redirecting");
+        sys.puts("wls: no session for "+sn+", redirecting");
         wipe_session(req, res);
     }
 }
@@ -132,36 +135,61 @@ var server = connect.createServer(
 server.listen(3000);
 console.log('Connect server listening on port 3000');
 
+function extend(v1, v2) {
+    for (var property in v2)
+        v1[property] = v2[property];
+    return v1;
+}
+
+function render(template, locals, res, req) {
+    var my_locals = { 
+        random: parseInt(Math.random()*10000000000),
+        title: "DEFAULT TITLE",
+        name: req.session.name,
+        template: template
+    };
+    extend(my_locals, locals);
+    sys.puts(JSON.stringify(my_locals));
+    jade.renderFile(template, { locals: my_locals }, function(err, html) {
+        if (err) {
+            sys.puts(err);
+        }
+        sys.puts(html)
+        res.end(html);
+    });
+}
+
 function app(app) {
-    app.get('/', function(req, res){
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-         var x = "";
-        // Fetch number of "online" users
-        req.sessionStore.length(function(err, n){
-            // User joined
-            if (req.session.name) {
-                jade.renderFile('welcome.html', {locals:{random: parseInt(Math.random()*10000000000), title:'Testing',name:req.session.name}}, function(err, html){
-                    res.end(html);
-                 });
-            } else {
-                jade.renderFile('nosession.html', {locals:{title:'Testing'}}, function(err, html){
-                    res.end(html);
-                 });
-            }
+    app.get('/pending', function(req, res){
+        with_session(req, res, function(res, req, ua) {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            render('pending.html', {title:'Ligging in'}, res, req);
         });
     });
-    app.get('/page', function(req, res){
-        if (req.session.name) {
-            ua = live[req.session.name];
-            if (ua) {
-                ua.page(3, "UA HTTP IS ALIVE!");
-            }
-            res.writeHead(302, { Location: '/' });
-            res.end();
-        }
+
+    app.get('/ua', function(req, res){
+        with_session(req, res, function(res, req, ua) {
+            res.writeHead(200, { 'Content-Type': 'text/html' });
+            render('welcome.html', {title:'Logging in'}, res, req);
+        });
+    });
+
+    app.get('/', function(req, res) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        render('nosession.html', {title:'Testing'}, res, req);
+    });
+
+    app.post('/page', function(req, res){
+        with_live_session(req, res, function(res, req, ua) {
+            sys.puts("paging "+req.body.to+" with ["+req.body.text+"]");
+            ua.page(3, req.body.text);
+        });
     });
 
     app.get('/logout', function(req, res){
+        with_live_session(req, res, function(res, req, ua) {
+            ua.stream.write('<request="user_logout"/>');
+        });
         req.session.regenerate(function(err){
             res.writeHead(302, { Location: '/' });
             res.end();
@@ -200,7 +228,7 @@ function app(app) {
                     pending[name] = new Bot(name);
                     pending[name].connect(req.body.name,req.body.password);
                     sys.puts("connecting "+req.body.name+"/"+req.body.password);
-                    res.writeHead(302, { Location: '/' });
+                    res.writeHead(302, { Location: '/pending' });
                     res.end();
                 });
                 break;
