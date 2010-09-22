@@ -97,7 +97,7 @@ function with_session(req, res, callback) {
     }
 }
 
-function with_live_session(req, res, callback) {
+function with_live_session(req, res, callback, error) {
     sn = req.session.name;
     sys.puts("SN="+sn);
     if (sn) {
@@ -112,7 +112,11 @@ function with_live_session(req, res, callback) {
         }
     } else {
         sys.puts("wls: no session for "+sn+", redirecting");
-        wipe_session(req, res);
+        if (error != undefined) {
+            error(req, res);
+        } else {
+            wipe_session(req, res);
+        }
     }
 }
 
@@ -231,6 +235,13 @@ function app(app) {
             unsent_events = []
             sys.puts(JSON.stringify(a));
             res.write(JSON.stringify(a));
+        }, function(req, res) {
+            req.session.regenerate(function(err){
+	            res.writeHead(200, { 'Content-Type': 'application/json' });
+	            a = { alive: 0 };
+	            sys.puts("NOT ALIVE IN /live.json : " + JSON.stringify(a));
+	            res.write(JSON.stringify(a));
+            })
         });
         res.end();
     });
