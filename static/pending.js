@@ -6,7 +6,7 @@ function show_alive(data, textStatus) {
 }
 
 function check_alive() {
-    $.getJSON('/live.json', show_alive);
+    $.getJSON('/pending.json', show_alive);
 }
 
 $(document).ready(function(){

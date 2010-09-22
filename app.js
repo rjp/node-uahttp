@@ -3,7 +3,6 @@
  * Module dependencies.
  */
 
-var erb = require("asyncEJS");
 var jade = require('jade');
 var sys = require('sys'),
     staticFiles = require('connect/middleware/staticProvider'),
@@ -18,7 +17,7 @@ var unsent_events = new Array;
 function reply_folder_list(a) {
     var i;
     // <reply="folder_list"><folder=1><name="test"/><accessmode=7/><subtype=1/><temp=1/><unread=1/></><numfolders=1/></>
-    sys.puts(a.children.length);
+    sys.puts("folder list received "+ a.children.length);
     for(i=0; i<a.children.length; i++) {
         sys.puts(i+" "+a.children[i].tag);
         f = a.children[i];
@@ -54,6 +53,7 @@ function Bot(name) {
 	    pending[this.name] = undefined;
 	
 	//    <request="folder_list"><searchtype=2/></>
+        sys.puts("requesting our subscribed folder list");
 	    live[this.name].stream.write('<request="folder_list"><searchtype=2/></>');
 	});
 
@@ -161,10 +161,25 @@ function render(template, locals, res, req) {
 
 function app(app) {
     app.get('/pending', function(req, res){
+        // we need a session but we won't have a live one yet
         with_session(req, res, function(res, req, ua) {
             res.writeHead(200, { 'Content-Type': 'text/html' });
-            render('pending.html', {title:'Ligging in'}, res, req);
+            render('pending.html', {title:'Logging in'}, res, req);
         });
+    });
+
+    app.get('/pending.json', function(req, res) {
+        with_session(req, res, function(res, req, ua) {
+            sn = req.session.name;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            a = { alive: 0 }
+            if (pending[sn] == undefined && live[sn] != undefined) { // alive!
+                a.alive = 1;
+            }
+            sys.puts(JSON.stringify(a));
+            res.write(JSON.stringify(a));
+        });
+        res.end();
     });
 
     app.get('/ua', function(req, res){
@@ -227,7 +242,7 @@ function app(app) {
                     var name = req.session.name = req.body.name;
                     pending[name] = new Bot(name);
                     pending[name].connect(req.body.name,req.body.password);
-                    sys.puts("connecting "+req.body.name+"/"+req.body.password);
+                    sys.puts("connecting "+req.body.name+"/"+req.body.password+", session name is "+name+", bot="+pending[name]);
                     res.writeHead(302, { Location: '/pending' });
                     res.end();
                 });
