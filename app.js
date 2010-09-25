@@ -172,20 +172,6 @@ function app(app) {
         });
     });
 
-    app.get('/pending.json', function(req, res) {
-        with_session(req, res, function(res, req, ua) {
-            sn = req.session.name;
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            a = { alive: 0 }
-            if (pending[sn] == undefined && live[sn] != undefined) { // alive!
-                a.alive = 1;
-            }
-            sys.puts(JSON.stringify(a));
-            res.write(JSON.stringify(a));
-        });
-        res.end();
-    });
-
     app.get('/ua', function(req, res){
         with_session(req, res, function(res, req, ua) {
             res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -242,6 +228,24 @@ function app(app) {
 	            sys.puts("NOT ALIVE IN /live.json : " + JSON.stringify(a));
 	            res.write(JSON.stringify(a));
             })
+        });
+        res.end();
+    });
+
+    app.get('/pending.json', function(req, res) {
+        with_session(req, res, function(res, req, ua) {
+            var a;
+            var name = req.session.name;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            if (live[name]) {
+                a = { alive: 1 };
+            } else if (pending[name]) {
+                a = { pending: 1 };
+            } else {
+                a = { login: 1 };
+            }
+            sys.puts(JSON.stringify(a));
+            res.write(JSON.stringify(a));
         });
         res.end();
     });

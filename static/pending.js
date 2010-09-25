@@ -3,6 +3,12 @@ function show_alive(data, textStatus) {
     if (data.alive) { // live session
         window.location = '/ua';
     }
+    if (data.pending) {
+        $('#pending').html('Pending...');
+    }
+    if (data.login) {
+        window.location = '/';
+    }
 }
 
 function check_alive() {
